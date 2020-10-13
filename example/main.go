@@ -4,8 +4,9 @@ import (
 	"context"
 	"log"
 	"os"
+	"reflect"
 
-	"github.com/hashicorp/go-memdb"
+	//"github.com/hashicorp/go-memdb"
 	"github.com/ioswarm/golik"
 	mem "github.com/ioswarm/golik-memdb"
 
@@ -26,7 +27,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	ref, err := sys.Execute(persistance.NewConnectionPool(&mem.MemDBPoolSettings{
+	/*ref, err := sys.Execute(persistance.NewConnectionPool(&mem.MemDBPoolSettings{
 		Table: "person",
 		Index: "id",
 		Schema: &memdb.DBSchema{
@@ -43,8 +44,14 @@ func main() {
 				},
 			},
 		},
-	}))
+	}))*/
 
+	stt, err := mem.NewMemDBPoolSettingsOf(reflect.TypeOf(Person{}), "email")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	ref, err := sys.Execute(persistance.NewConnectionPool(stt))
 	if err != nil {
 		log.Panic(err)
 	}
