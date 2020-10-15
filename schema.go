@@ -4,16 +4,10 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/hashicorp/go-memdb"
 	mdb "github.com/hashicorp/go-memdb"
+	"github.com/ioswarm/golik/db"
 )
-
-func camelCase(s string) string {
-	uname := []rune(s)
-	if uname[0] >= 65 && uname[0] <= 90 {
-		uname[0] = uname[0] + 32
-	}
-	return string(uname)
-}
 
 func indexTypeOf(ftype reflect.Type, fieldname string) mdb.Indexer {
 	switch ftype.Kind() {
@@ -42,7 +36,7 @@ func CreateTableSchema(ttype reflect.Type, indexField string) (*mdb.TableSchema,
 		return nil, fmt.Errorf("Given type must be a struct got %v", ttype.Kind())
 	}
 
-	tblname := camelCase(ttype.Name())
+	tblname := db.CamelCase(ttype.Name())
 
 	res := &mdb.TableSchema{Name: tblname, Indexes: make(map[string]*mdb.IndexSchema)}
 
@@ -51,7 +45,7 @@ func CreateTableSchema(ttype reflect.Type, indexField string) (*mdb.TableSchema,
 		fname := fld.Name 
 		funame := []rune(fname)
 		if funame[0] >= 65 && funame[0] <= 90 {
-			ccfname := camelCase(fname)
+			ccfname := db.CamelCase(fname)
 			if ccfname == indexField {
 				idx := indexTypeOf(fld.Type, fname)
 				if idx == nil {
@@ -84,4 +78,23 @@ func CreateSingleDBSchema(ttype reflect.Type, indexField string) (*mdb.DBSchema,
 			tbl.Name: tbl,
 		},
 	}, nil
+}
+
+func firstTable(schema *memdb.DBSchema) *memdb.TableSchema {
+	for key := range schema.Tables {
+		return schema.Tables[key]
+	}
+
+	return nil
+}
+
+func firstUniquIndex(table *memdb.TableSchema) *memdb.IndexSchema {
+	for key := range table.Indexes {
+		idx := table.Indexes[key]
+		if idx.Unique {
+			return idx
+		}
+	}
+
+	return nil
 }

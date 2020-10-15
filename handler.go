@@ -4,10 +4,16 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/ioswarm/golik"
 	"github.com/ioswarm/golik/filter"
-	"github.com/ioswarm/golik/persistance"
+	"github.com/ioswarm/golik/db"
 )
 
-func NewHandler(db *memdb.MemDB, table string, index string, behavior interface{}) persistance.Handler {
+func defaultHandlerCreation(database *memdb.MemDB, table string, index string, behavior interface{}) db.HandlerCreation {
+	return func(ctx golik.CloveContext) (db.Handler, error) {
+		return NewMemDBHandler(database, table, index, behavior), nil
+	}
+}
+
+func NewMemDBHandler(db *memdb.MemDB, table string, index string, behavior interface{}) db.Handler {
 	return &memDBHandler{
 		db:       db,
 		table:    table,
@@ -75,7 +81,7 @@ func (hdl *memDBHandler) Filter(ctx golik.CloveContext, flt *filter.Filter) (*fi
 	}, nil
 }
 
-func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *persistance.Create) error {
+func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *db.CreateCommand) error {
 	if cmd != nil && cmd.Entity != nil {
 		txn := hdl.db.Txn(true)
 		if err := txn.Insert(hdl.table, cmd.Entity); err != nil {
@@ -89,7 +95,7 @@ func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *persistance.Create)
 	return nil
 }
 
-func (hdl *memDBHandler) Read(ctx golik.CloveContext, cmd *persistance.Get) (interface{}, error) {
+func (hdl *memDBHandler) Read(ctx golik.CloveContext, cmd *db.GetCommand) (interface{}, error) {
 	if cmd != nil && cmd.Id != nil {
 		txn := hdl.db.Txn(false)
 		defer txn.Abort()
@@ -104,16 +110,16 @@ func (hdl *memDBHandler) Read(ctx golik.CloveContext, cmd *persistance.Get) (int
 	return nil, nil
 }
 
-func (hdl *memDBHandler) Update(ctx golik.CloveContext, cmd *persistance.Update) error {
+func (hdl *memDBHandler) Update(ctx golik.CloveContext, cmd *db.UpdateCommand) error {
 	if cmd != nil {
-		return hdl.Create(ctx, &persistance.Create{Entity: cmd.Entity})
+		return hdl.Create(ctx, &db.CreateCommand{Entity: cmd.Entity})
 	}
 	return nil
 }
 
-func (hdl *memDBHandler) Delete(ctx golik.CloveContext, cmd *persistance.Delete) (interface{}, error) {
+func (hdl *memDBHandler) Delete(ctx golik.CloveContext, cmd *db.DeleteCommand) (interface{}, error) {
 	if cmd != nil {
-		data, err := hdl.Read(ctx, &persistance.Get{Id: cmd.Id})
+		data, err := hdl.Read(ctx, &db.GetCommand{Id: cmd.Id})
 		if err != nil { 
 			return nil, err
 		}
