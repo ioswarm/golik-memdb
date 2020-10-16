@@ -3,19 +3,17 @@ package memdb
 import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/ioswarm/golik"
-	"github.com/ioswarm/golik/filter"
-	"github.com/ioswarm/golik/db"
 )
 
-func defaultHandlerCreation(database *memdb.MemDB, table string, index string, behavior interface{}) db.HandlerCreation {
-	return func(ctx golik.CloveContext) (db.Handler, error) {
+func defaultHandlerCreation(database *memdb.MemDB, table string, index string, behavior interface{}) golik.HandlerCreation {
+	return func(ctx golik.CloveContext) (golik.Handler, error) {
 		return NewMemDBHandler(database, table, index, behavior), nil
 	}
 }
 
-func NewMemDBHandler(db *memdb.MemDB, table string, index string, behavior interface{}) db.Handler {
+func NewMemDBHandler(db *memdb.MemDB, table string, index string, behavior interface{}) golik.Handler {
 	return &memDBHandler{
-		db:       db,
+		database: db,
 		table:    table,
 		index:    index,
 		behavior: behavior,
@@ -23,19 +21,19 @@ func NewMemDBHandler(db *memdb.MemDB, table string, index string, behavior inter
 }
 
 type memDBHandler struct {
-	db       *memdb.MemDB
+	database *memdb.MemDB
 	table    string
 	index    string
 	behavior interface{}
 }
 
-func (hdl *memDBHandler) Filter(ctx golik.CloveContext, flt *filter.Filter) (*filter.Result, error) {
+func (hdl *memDBHandler) Filter(ctx golik.CloveContext, flt *golik.Filter) (*golik.Result, error) {
 	cond, err := flt.Condition()
 	if err != nil {
 		return nil, err
 	}
 
-	txn := hdl.db.Txn(false)
+	txn := hdl.database.Txn(false)
 	defer txn.Abort()
 	slice := make([]interface{}, 0)
 
@@ -61,7 +59,7 @@ func (hdl *memDBHandler) Filter(ctx golik.CloveContext, flt *filter.Filter) (*fi
 			slice = slice[cnt:cnt]
 		} else {
 			if flt.Size > 0 {
-				to := flt.From+flt.Size
+				to := flt.From + flt.Size
 				if to > cnt {
 					slice = slice[flt.From:cnt]
 				} else {
@@ -72,18 +70,18 @@ func (hdl *memDBHandler) Filter(ctx golik.CloveContext, flt *filter.Filter) (*fi
 			}
 		}
 	}
-	
-	return &filter.Result{
-		From: flt.From,
-		Size: flt.Size,
-		Count: cnt,
+
+	return &golik.Result{
+		From:   flt.From,
+		Size:   flt.Size,
+		Count:  cnt,
 		Result: slice,
 	}, nil
 }
 
-func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *db.CreateCommand) error {
+func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *golik.CreateCommand) error {
 	if cmd != nil && cmd.Entity != nil {
-		txn := hdl.db.Txn(true)
+		txn := hdl.database.Txn(true)
 		if err := txn.Insert(hdl.table, cmd.Entity); err != nil {
 			txn.Abort()
 			return err
@@ -95,35 +93,35 @@ func (hdl *memDBHandler) Create(ctx golik.CloveContext, cmd *db.CreateCommand) e
 	return nil
 }
 
-func (hdl *memDBHandler) Read(ctx golik.CloveContext, cmd *db.GetCommand) (interface{}, error) {
+func (hdl *memDBHandler) Read(ctx golik.CloveContext, cmd *golik.GetCommand) (interface{}, error) {
 	if cmd != nil && cmd.Id != nil {
-		txn := hdl.db.Txn(false)
+		txn := hdl.database.Txn(false)
 		defer txn.Abort()
-		
+
 		data, err := txn.First(hdl.table, hdl.index, cmd.Id)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		return data, nil
 	}
 	return nil, nil
 }
 
-func (hdl *memDBHandler) Update(ctx golik.CloveContext, cmd *db.UpdateCommand) error {
+func (hdl *memDBHandler) Update(ctx golik.CloveContext, cmd *golik.UpdateCommand) error {
 	if cmd != nil {
-		return hdl.Create(ctx, &db.CreateCommand{Entity: cmd.Entity})
+		return hdl.Create(ctx, &golik.CreateCommand{Entity: cmd.Entity})
 	}
 	return nil
 }
 
-func (hdl *memDBHandler) Delete(ctx golik.CloveContext, cmd *db.DeleteCommand) (interface{}, error) {
+func (hdl *memDBHandler) Delete(ctx golik.CloveContext, cmd *golik.DeleteCommand) (interface{}, error) {
 	if cmd != nil {
-		data, err := hdl.Read(ctx, &db.GetCommand{Id: cmd.Id})
-		if err != nil { 
+		data, err := hdl.Read(ctx, &golik.GetCommand{Id: cmd.Id})
+		if err != nil {
 			return nil, err
 		}
-		txn := hdl.db.Txn(true)
+		txn := hdl.database.Txn(true)
 		defer txn.Commit()
 
 		if err := txn.Delete(hdl.table, data); err != nil {

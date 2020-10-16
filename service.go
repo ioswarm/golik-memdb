@@ -8,7 +8,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/ioswarm/golik"
-	"github.com/ioswarm/golik/db"
 )
 
 func MemDB(system golik.Golik) (*MemDBService, error) {
@@ -51,7 +50,7 @@ func (mdb *MemDBService) CreateServiceInstance(system golik.Golik) *golik.Clove 
 	}
 }
 
-func (mdb *MemDBService) CreateConnectionPool(settings *db.ConnectionPoolSettings) (golik.CloveRef, error) {
+func (mdb *MemDBService) CreateConnectionPool(settings *golik.ConnectionPoolSettings) (golik.CloveRef, error) {
 	itype := settings.Type
 	if itype.Kind() != reflect.Struct {
 		return nil, errors.New("Given type must be a struct")
@@ -66,7 +65,7 @@ func (mdb *MemDBService) CreateConnectionPool(settings *db.ConnectionPoolSetting
 			return nil, errors.New("Given type has no fields")
 		}
 		ftype := itype.Field(0)
-		idx = db.CamelCase(ftype.Name)
+		idx = golik.CamelCase(ftype.Name)
 	}
 	schema, err := CreateSingleDBSchema(itype, idx)
 	if err != nil {
@@ -92,6 +91,6 @@ func (mdb *MemDBService) CreateConnectionPool(settings *db.ConnectionPoolSetting
 		settings.CreateHandler = defaultHandlerCreation(database, table.Name, index.Name, settings.Behavior)
 	}
 
-	clove := db.NewConnectionPool(settings)
+	clove := golik.NewConnectionPool(settings)
 	return mdb.handler.Execute(clove)
 }

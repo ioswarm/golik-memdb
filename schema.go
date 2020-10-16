@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	mdb "github.com/hashicorp/go-memdb"
-	"github.com/ioswarm/golik/db"
+	"github.com/ioswarm/golik"
 )
 
 func indexTypeOf(ftype reflect.Type, fieldname string) mdb.Indexer {
@@ -36,24 +36,24 @@ func CreateTableSchema(ttype reflect.Type, indexField string) (*mdb.TableSchema,
 		return nil, fmt.Errorf("Given type must be a struct got %v", ttype.Kind())
 	}
 
-	tblname := db.CamelCase(ttype.Name())
+	tblname := golik.CamelCase(ttype.Name())
 
 	res := &mdb.TableSchema{Name: tblname, Indexes: make(map[string]*mdb.IndexSchema)}
 
 	for i := 0; i < ttype.NumField(); i++ {
 		fld := ttype.Field(i)
-		fname := fld.Name 
+		fname := fld.Name
 		funame := []rune(fname)
 		if funame[0] >= 65 && funame[0] <= 90 {
-			ccfname := db.CamelCase(fname)
+			ccfname := golik.CamelCase(fname)
 			if ccfname == indexField {
 				idx := indexTypeOf(fld.Type, fname)
 				if idx == nil {
 					return nil, fmt.Errorf("No indexer for type %v present", fld.Type)
 				}
 				res.Indexes["id"] = &mdb.IndexSchema{
-					Name: "id",
-					Unique: true,
+					Name:    "id",
+					Unique:  true,
 					Indexer: idx,
 				}
 			}
